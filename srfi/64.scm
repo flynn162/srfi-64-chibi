@@ -44,35 +44,13 @@
     (syntax-rules ()
       ((%test-export . names) (if #f #f))))))
 
-(cond-expand
- (srfi-9
-  (define-syntax %test-record-define
-    (syntax-rules ()
-      ((%test-record-define tname alloc runner? (name index getter setter) ...)
-       (define-record-type tname
-	 (alloc)
-	 runner?
-	 (name getter setter) ...)))))
- (else
-  (define %test-runner-cookie (list "test-runner"))
-  (define-syntax %test-record-define
-    (syntax-rules ()
-      ((%test-record-define tname alloc runner? (name index getter setter) ...)
-       (begin
-	 (define (runner? obj)
-	   (and (vector? obj)
-		(> (vector-length obj) 1)
-		(eq (vector-ref obj 0) %test-runner-cookie)))
-	 (define (alloc)
-	   (let ((runner (make-vector 23)))
-	     (vector-set! runner 0 %test-runner-cookie)
-	     runner))
-	 (begin
-	   (define (getter runner)
-	     (vector-ref runner index)) ...)
-	 (begin
-	   (define (setter runner value)
-	     (vector-set! runner index value)) ...)))))))
+(define-syntax %test-record-define
+  (syntax-rules ()
+    ((%test-record-define tname alloc runner? (name index getter setter) ...)
+     (define-record-type tname
+       (alloc)
+       runner?
+       (name getter setter) ...))))
 
 (%test-record-define test-runner
  %test-runner-alloc test-runner?
@@ -191,9 +169,7 @@
   (define (test-runner-get)
     (let ((r (test-runner-current)))
       (if (not r)
-          (cond-expand
-           (srfi-23 (error "test-runner not initialized - test-begin missing?"))
-           (else #t)))
+          (error "test-runner not initialized - test-begin missing?"))
       r))))
 
 (define (%test-specifier-matches spec runner)
@@ -331,9 +307,7 @@
 (define (test-on-bad-end-name-simple runner begin-name end-name)
   (let ((msg (string-append (%test-format-line runner) "test-end " begin-name
 			    " does not match test-begin " end-name)))
-    (cond-expand
-     (srfi-23 (error msg))
-     (else (display msg) (newline)))))
+    (error msg)))
 
 
 (define (%test-final-report1 value label port)
@@ -378,9 +352,7 @@
     (test-result-alist! r line-info)
     (if (null? groups)
 	(let ((msg (string-append line "test-end not in a group")))
-	  (cond-expand
-	   (srfi-23 (error msg))
-	   (else (display msg) (newline)))))
+	  (error msg)))
     (if (and suite-name (not (equal? suite-name (car groups))))
 	((test-runner-on-bad-end-name r) r suite-name (car groups)))
     (let* ((count-list (%test-runner-count-list r))
@@ -1006,6 +978,4 @@
 	 (guile (eval form (current-module)))
          (gauche (eval form ((with-module gauche.internal vm-current-module))))
 	 (else (eval form)))
-	(cond-expand
-	 (srfi-23 (error "(not at eof)"))
-	 (else "error")))))
+        (error "(not at eof)"))))
