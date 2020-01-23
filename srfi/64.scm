@@ -476,40 +476,10 @@
     (%test-runner-total-count! r (+ 1 (%test-runner-total-count r)))
     ((test-runner-on-test-end r) r)))
 
-(cond-expand
- (guile
-  (define-syntax %test-evaluate-with-catch
-    (syntax-rules ()
-      ((%test-evaluate-with-catch test-expression)
-       (catch #t
-         (lambda () test-expression)
-         (lambda (key . args)
-           (test-result-set! (test-runner-current) 'actual-error
-                             (cons key args))
-           #f))))))
- (kawa
-  (define-syntax %test-evaluate-with-catch
-    (syntax-rules ()
-      ((%test-evaluate-with-catch test-expression)
-       (try-catch test-expression
-		  (ex <java.lang.Throwable>
-		      (test-result-set! (test-runner-current) 'actual-error ex)
-		      #f))))))
- (srfi-34
-  (define-syntax %test-evaluate-with-catch
-    (syntax-rules ()
-      ((%test-evaluate-with-catch test-expression)
-       (guard (err (else #f)) test-expression)))))
- (chicken
-  (define-syntax %test-evaluate-with-catch
-    (syntax-rules ()
-      ((%test-evaluate-with-catch test-expression)
-       (condition-case test-expression (ex () #f))))))
- (else
-  (define-syntax %test-evaluate-with-catch
-    (syntax-rules ()
-      ((%test-evaluate-with-catch test-expression)
-       test-expression)))))
+(define-syntax %test-evaluate-with-catch
+  (syntax-rules ()
+    ((%test-evaluate-with-catch test-expression)
+     (guard (err (else #f)) test-expression))))
 
 (cond-expand
  ((or kawa mzscheme)
@@ -704,95 +674,10 @@
       ((test-approximate expected expr error)
        (%test-comp2 (%test-approximate= error) expected expr))))))
 
-(cond-expand
- (guile
-  (define-syntax %test-error
-    (syntax-rules ()
-      ((%test-error r etype expr)
-       (cond ((%test-on-test-begin r)
-              (let ((et etype))
-                (test-result-set! r 'expected-error et)
-                (%test-on-test-end r
-                                   (catch #t
-                                     (lambda ()
-                                       (test-result-actual-value! r expr)
-                                       #f)
-                                     (lambda (key . args)
-                                       ;; TODO: decide how to specify expected
-                                       ;; error types for Guile.
-                                       (test-result-set! r 'actual-error
-                                                         (cons key args))
-                                       #t)))
-                (%test-report-result))))))))
- (mzscheme
-  (define-syntax %test-error
-    (syntax-rules ()
-      ((%test-error r etype expr)
-       (%test-comp1body r (with-handlers (((lambda (h) #t) (lambda (h) #t)))
-					 (let ()
-					   (test-result-set! r 'actual-value expr)
-					   #f)))))))
- (chicken
-  (define-syntax %test-error
-    (syntax-rules ()
-      ((%test-error r etype expr)
-        (%test-comp1body r (condition-case expr (ex () #t)))))))
- (kawa
-  (define-syntax %test-error
-    (syntax-rules ()
-      ((%test-error r #t expr)
-       (cond ((%test-on-test-begin r)
-	      (test-result-set! r 'expected-error #t)
-	      (%test-on-test-end r
-				 (try-catch
-				  (let ()
-				    (test-result-actual-value! r expr)
-				    #f)
-				  (ex <java.lang.Throwable>
-				      (test-result-set! r 'actual-error ex)
-				      #t)))
-	      (%test-report-result))))
-      ((%test-error r etype expr)
-       (if (%test-on-test-begin r)
-	   (let ((et etype))
-	     (test-result-set! r 'expected-error et)
-	     (%test-on-test-end r
-				(try-catch
-				 (let ()
-				   (test-result-actual-value! r expr)
-				   #f)
-				 (ex <java.lang.Throwable>
-				     (test-result-set! r 'actual-error ex)
-				     (cond ((and (instance? et <gnu.bytecode.ClassType>)
-						 (gnu.bytecode.ClassType:isSubclass et <java.lang.Throwable>))
-					    (instance? ex et))
-					   (else #t)))))
-	     (%test-report-result)))))))
- ((and srfi-34 srfi-35)
-  (define-syntax %test-error
-    (syntax-rules ()
-      ((%test-error r etype expr)
-       (%test-comp1body r (guard (ex ((condition-type? etype)
-		   (and (condition? ex) (condition-has-type? ex etype)))
-		  ((procedure? etype)
-		   (etype ex))
-		  ((equal? etype #t)
-		   #t)
-		  (else #t))
-	      expr #f))))))
- (srfi-34
-  (define-syntax %test-error
-    (syntax-rules ()
-      ((%test-error r etype expr)
-       (%test-comp1body r (guard (ex (else #t)) expr #f))))))
- (else
-  (define-syntax %test-error
-    (syntax-rules ()
-      ((%test-error r etype expr)
-       (begin
-	 ((test-runner-on-test-begin r) r)
-	 (test-result-set! r 'result-kind 'skip)
-	 (%test-report-result)))))))
+(define-syntax %test-error
+  (syntax-rules ()
+    ((%test-error r etype expr)
+     (%test-comp1body r (guard (ex (else #t)) expr #f)))))
 
 (cond-expand
  ((or kawa mzscheme guile-2)
