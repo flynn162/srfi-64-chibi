@@ -118,25 +118,9 @@
     (test-runner-on-bad-end-name! runner test-on-bad-end-name-simple)
     runner))
 
-(cond-expand
- (srfi-39
-  (define test-runner-current (make-parameter #f))
-  (define test-runner-factory (make-parameter test-runner-simple)))
- (else
-  (define %test-runner-current #f)
-  (define-syntax test-runner-current
-    (syntax-rules ()
-      ((test-runner-current)
-       %test-runner-current)
-      ((test-runner-current runner)
-       (set! %test-runner-current runner))))
-  (define %test-runner-factory test-runner-simple)
-  (define-syntax test-runner-factory
-    (syntax-rules ()
-      ((test-runner-factory)
-       %test-runner-factory)
-      ((test-runner-factory runner)
-       (set! %test-runner-factory runner))))))
+
+(define test-runner-current (make-parameter #f))
+(define test-runner-factory (make-parameter test-runner-simple))
 
 ;; A safer wrapper to test-runner-current.
 (cond-expand
