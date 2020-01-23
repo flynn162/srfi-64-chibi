@@ -25,25 +25,6 @@
 ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;; SOFTWARE.
 
-(cond-expand
- (kawa
-  ;; Kawa's default top-level environment has test-begin built in,
-  ;; as a magic macro that imports this library (without test-begin).
-  ;; This puts test-begin but only test-begin in the default environment,
-  ;; which makes normal test suites loadable without non-portable commands.
-  ;; Therefore we need to export %test-begin, which performs the
-  ;; functionality of test-begin without the magic import.
-  (define-syntax %test-export
-    (syntax-rules ()
-      ((%test-export test-begin . other-names)
-       (module-export %test-begin test-begin . other-names)))))
- (gauche
-  (define-syntax %test-export export))
- (else
-  (define-syntax %test-export
-    (syntax-rules ()
-      ((%test-export . names) (if #f #f))))))
-
 (define-syntax %test-record-define
   (syntax-rules ()
     ((%test-record-define tname alloc runner? (name index getter setter) ...)
